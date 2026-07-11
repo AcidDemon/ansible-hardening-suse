@@ -1,0 +1,18 @@
+# Managed by Ansible (ssh_2fa)
+{% if ssh_2fa_totp_enabled %}
+KbdInteractiveAuthentication yes
+AuthenticationMethods publickey,keyboard-interactive
+{% else %}
+AuthenticationMethods publickey
+{% endif %}
+
+# Automation: key only, never prompted for a second factor.
+Match User {{ deploy_user }}
+    AuthenticationMethods publickey
+
+{% if ssh_2fa_fido2_enabled %}
+# Hardware-key tier: FIDO2 (sk-*) key + touch/PIN, no TOTP.
+Match Group fido2users
+    AuthenticationMethods publickey
+    PubkeyAuthOptions verify-required
+{% endif %}

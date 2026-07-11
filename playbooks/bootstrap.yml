@@ -1,0 +1,22 @@
+---
+- name: Bootstrap — ensure a usable Python interpreter
+  hosts: hardened_hosts
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Ensure a modern Python 3 is installed (Tumbleweed python3 / Leap python311)
+      ansible.builtin.raw: |
+        . /etc/os-release
+        case "${ID:-}" in
+          opensuse-leap*|sles*|sle-*) pkg=python311; bin=python3.11 ;;
+          *) pkg=python3; bin=python3 ;;
+        esac
+        if command -v "$bin" >/dev/null 2>&1 && "$bin" -c 'import xml.parsers.expat' >/dev/null 2>&1; then exit 0; fi
+        zypper --non-interactive --gpg-auto-import-keys refresh >/dev/null 2>&1 || true
+        zypper --non-interactive install --auto-agree-with-licenses "$pkg" libexpat1 || true
+        "$bin" -c 'import xml.parsers.expat'
+      changed_when: false
+
+# Account/group/key creation (admin + deploy users, sshusers/fido2users groups,
+# sudoers) is owned by acidnetworks.base_suse, which runs before this repo in the
+# base -> hardening -> app order.

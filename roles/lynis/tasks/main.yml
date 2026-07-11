@@ -1,0 +1,16 @@
+---
+- name: Configure lynis
+  when: lynis_enabled | bool
+  block:
+    # Lynis is not in the base Leap OSS repo; it ships via PackageHub
+    # (SUSEConnect -p PackageHub) or the CISOfy repo. Repo/OS identity is owned
+    # by acidnetworks.base_suse, so this just installs — enable PackageHub there
+    # if the plain install fails.
+    - name: Install lynis
+      community.general.zypper:
+        name: lynis
+        state: present
+
+    - name: Run a lynis system audit (report-only)
+      ansible.builtin.command: lynis audit system --quiet --no-colors
+      changed_when: false

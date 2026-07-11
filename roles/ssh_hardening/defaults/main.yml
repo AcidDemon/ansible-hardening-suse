@@ -1,0 +1,6 @@
+---
+ssh_port: 22
+ssh_allow_groups:
+  - sshusers
+ssh_pin_crypto: false
+ssh_prune_moduli: true

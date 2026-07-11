@@ -1,0 +1,5 @@
+---
+deploy_user: ansible
+ssh_2fa_totp_enabled: true
+ssh_2fa_fido2_enabled: true
+ssh_2fa_totp_nullok: true

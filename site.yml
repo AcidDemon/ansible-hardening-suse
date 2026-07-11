@@ -1,0 +1,8 @@
+---
+# Standalone dev entrypoint. Consumers instead:
+#   import_playbook: acidnetworks.hardening_suse.harden
+- name: Bootstrap Python
+  ansible.builtin.import_playbook: playbooks/bootstrap.yml
+
+- name: Harden
+  ansible.builtin.import_playbook: playbooks/harden.yml

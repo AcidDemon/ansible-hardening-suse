@@ -1,0 +1,3 @@
+---
+# 2.16 floor: the roles use ansible.builtin.systemd_service (added in 2.16).
+requires_ansible: ">=2.16"

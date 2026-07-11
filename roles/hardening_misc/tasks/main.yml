@@ -1,0 +1,119 @@
+---
+- name: Disable core dumps (limits + systemd)
+  when: hardening_misc_coredumps | bool
+  block:
+    - name: Limits.d core dump rule
+      ansible.builtin.copy:
+        dest: /etc/security/limits.d/99-coredump.conf
+        content: "* hard core 0\n"
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create coredump.conf.d directory
+      ansible.builtin.file:
+        path: /etc/systemd/coredump.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+    - name: Systemd coredump storage none
+      ansible.builtin.copy:
+        dest: /etc/systemd/coredump.conf.d/99-hardening.conf
+        content: |
+          [Coredump]
+          Storage=none
+          ProcessSizeMax=0
+        owner: root
+        group: root
+        mode: "0644"
+
+- name: Make journald persistent
+  when: hardening_misc_journald_persistent | bool
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/journald.conf
+    regexp: '^\s*#?\s*Storage='
+    line: "Storage=persistent"
+    backup: true
+  notify: Restart journald
+
+- name: Restrict cron/at to allowlists
+  when: hardening_misc_cron_allow | bool
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    content: "{{ (['root', admin_user, deploy_user] + hardening_misc_cron_allow_extra_users) | join('\n') }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - /etc/cron.allow
+    - /etc/at.allow
+
+- name: Use a tmpfs /tmp with nosuid,nodev,noexec
+  when: hardening_misc_tmp_tmpfs | bool
+  block:
+    - name: Tmp.mount options drop-in
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/tmp.mount.d/options.conf
+        content: |
+          [Mount]
+          Options=mode=1777,strictatime,nosuid,nodev,noexec
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Enable tmp.mount
+      ansible.builtin.systemd_service:
+        name: tmp.mount
+        enabled: true
+
+- name: Install msmtp and configure relay
+  when: hardening_misc_msmtp | bool
+  block:
+    - name: Enable the server:mail OBS repo (msmtp isn't in base Leap 15.6)
+      community.general.zypper_repository:
+        name: server_mail
+        repo: "https://download.opensuse.org/repositories/server:/mail/15.6/server:mail.repo"
+        auto_import_keys: true
+        autorefresh: true
+        state: present
+    - name: Install msmtp
+      # SUSE: zypper instead of apt; no cache/DEBIAN_FRONTEND knobs needed
+      community.general.zypper:
+        name:
+          - msmtp
+          - msmtp-mta
+        state: present
+    - name: Deploy msmtprc (relay credentials)
+      ansible.builtin.template:
+        src: msmtprc.j2
+        dest: /etc/msmtprc
+        owner: root
+        group: root
+        mode: "0600"
+    - name: Deploy mail aliases (root -> admin_email)
+      ansible.builtin.template:
+        src: aliases.j2
+        dest: /etc/aliases
+        owner: root
+        group: root
+        mode: "0644"
+
+- name: Restrict /proc with hidepid (opt-in)
+  when: hardening_misc_proc_hidepid | bool
+  block:
+    - name: Create the proc group
+      ansible.builtin.group:
+        name: proc
+        system: true
+    - name: Add admin + deploy users to the proc group
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: proc
+        append: true
+      loop: "{{ [admin_user, deploy_user] + hardening_misc_cron_allow_extra_users }}"
+    - name: Mount /proc with hidepid=2,gid=proc
+      ansible.posix.mount:
+        path: /proc
+        src: proc
+        fstype: proc
+        opts: "defaults,hidepid=2,gid=proc"
+        state: mounted

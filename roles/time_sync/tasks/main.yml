@@ -1,0 +1,21 @@
+---
+- name: Install chrony
+  community.general.zypper:
+    name: chrony
+    state: present
+
+- name: Template chrony.conf
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf   # SUSE: single file, no /etc/chrony/ dir
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart chrony
+
+- name: Enable and start chrony
+  ansible.builtin.systemd_service:
+    name: chronyd            # SUSE unit is chronyd (Debian: chrony)
+    state: started
+    enabled: true

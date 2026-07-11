@@ -1,0 +1,4 @@
+---
+# Set false to skip the sysctl drop-in (e.g. an unprivileged LXC where kernel sysctls are read-only).
+sysctl_hardening_enabled: true
+sysctl_strict_ptrace: false

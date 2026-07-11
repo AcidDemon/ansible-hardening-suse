@@ -1,0 +1,32 @@
+# Managed by Ansible (ssh_hardening)
+PermitRootLogin no
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+UsePAM yes
+{% if ssh_port | int != 22 %}
+Port {{ ssh_port }}
+{% endif %}
+AllowGroups {{ ssh_allow_groups | join(' ') }}
+MaxAuthTries 3
+MaxSessions 4
+LoginGraceTime 30
+ClientAliveInterval 300
+ClientAliveCountMax 2
+X11Forwarding no
+AllowTcpForwarding no
+AllowAgentForwarding no
+PermitTunnel no
+AllowStreamLocalForwarding no
+GatewayPorts no
+Compression no
+IgnoreRhosts yes
+HostbasedAuthentication no
+PermitUserEnvironment no
+LogLevel VERBOSE
+Subsystem sftp internal-sftp -f AUTHPRIV -l INFO
+{% if ssh_pin_crypto %}
+KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com
+{% endif %}

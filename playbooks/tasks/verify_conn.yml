@@ -1,0 +1,15 @@
+---
+# Flush pending sshd reloads FIRST, so the probe below tests the LIVE hardened config
+# (not the pre-hardening one) while the rollback timer is still armed. Without this, the
+# notified `Reload sshd` handlers only fire at end-of-play — after disarm_rollback — so a
+# lockout would pass the probe undetected and then go live with the dead-man's-switch
+# already stopped: an unrecoverable brick. flush_handlers here closes that gap.
+- name: Apply pending sshd reloads before probing connectivity
+  ansible.builtin.meta: flush_handlers
+
+- name: Force a fresh SSH connection
+  ansible.builtin.meta: reset_connection
+
+- name: Reconnect succeeds (we are not locked out)
+  ansible.builtin.wait_for_connection:
+    timeout: 30

@@ -1,0 +1,60 @@
+---
+- name: Configure rkhunter
+  when: rkhunter_enabled | bool
+  block:
+    - name: Install rkhunter
+      community.general.zypper:
+        name: rkhunter
+        state: present
+    - name: Configure rkhunter.conf
+      ansible.builtin.lineinfile:
+        path: /etc/rkhunter.conf
+        regexp: "^#?\\s*{{ item.k }}="
+        line: "{{ item.k }}={{ item.v }}"
+        backup: true
+      loop:
+        - { k: "WEB_CMD", v: '""' }
+        - { k: "UPDATE_MIRRORS", v: "1" }
+        - { k: "MIRRORS_MODE", v: "0" }
+        # SUSE is RPM-based: the package-integrity check must use RPM, not DPKG. rkhunter
+        # reads PKGMGR from /etc/rkhunter.conf, so it stays in this loop (only the value changes).
+        - { k: "PKGMGR", v: "RPM" }
+        - { k: "MAIL-ON-WARNING", v: "root" }
+      loop_control:
+        label: "{{ item.k }}"
+    - name: Initialise the rkhunter file-properties database
+      ansible.builtin.command: rkhunter --propupd
+      args:
+        creates: /var/lib/rkhunter/db/rkhunter.dat
+
+- name: Configure chkrootkit
+  when: chkrootkit_enabled | bool
+  block:
+    - name: Install chkrootkit
+      community.general.zypper:
+        name: chkrootkit
+        state: present
+
+# Debian drove the daily runs through cron.daily wrappers (/etc/default/rkhunter and
+# /etc/chkrootkit/chkrootkit.conf); neither convention exists on SUSE, so we own the schedule
+# with a single oneshot service + daily timer covering whichever scanners are enabled.
+- name: Schedule the rootkit scanners
+  when: rkhunter_enabled | bool or chkrootkit_enabled | bool
+  block:
+    - name: Deploy the daily rootkit-scan service + timer
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - rootkit-scan.service
+        - rootkit-scan.timer
+      notify: Reload systemd daemon
+    - name: Enable the daily rootkit-scan timer
+      ansible.builtin.systemd_service:
+        name: rootkit-scan.timer
+        enabled: true
+        state: started
+        daemon_reload: true

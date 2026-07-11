@@ -1,0 +1,15 @@
+# Managed by Ansible (sysctl_hardening)
+# Only keys base_suse.sysctl's 90-baseline.conf does NOT own (kptr/dmesg/protected_{hardlinks,
+# symlinks}/suid_dumpable/syncookies/log_martians/{accept,send}_redirects are base's).
+kernel.yama.ptrace_scope = {{ 2 if sysctl_strict_ptrace else 1 }}
+# loose(2), not strict(1): strict rp_filter breaks the rootful-edge -> rootless-app
+# multi-bridge return path (stack invariant)
+net.ipv4.conf.all.rp_filter = 2
+net.ipv4.conf.default.rp_filter = 2
+fs.protected_fifos = 2
+fs.protected_regular = 2
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+net.ipv6.conf.all.accept_source_route = 0

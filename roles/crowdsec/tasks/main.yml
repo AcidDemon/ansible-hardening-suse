@@ -1,0 +1,101 @@
+---
+- name: Configure CrowdSec
+  when: crowdsec_enabled | bool
+  block:
+    - name: Import the CrowdSec packagecloud signing key
+      ansible.builtin.rpm_key:
+        key: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+        state: present
+
+    - name: Add the CrowdSec packagecloud repository
+      community.general.zypper_repository:
+        name: crowdsec_crowdsec
+        # No native CrowdSec/openSUSE build on packagecloud, so we use the EL RPMs.
+        # Leap 15.6 = SLE 15 SP6 (glibc 2.31, RHEL-8-era userland) -> el/8, NOT el/9
+        # (el/9 binaries need glibc 2.34 and won't run on Leap). Verify the dist at
+        # https://packagecloud.io/crowdsec/crowdsec/install
+        repo: "https://packagecloud.io/crowdsec/crowdsec/el/8/$basearch"
+        auto_import_keys: true
+        autorefresh: true
+        state: present
+
+    - name: Install crowdsec and the firewall bouncer (packagecloud RPMs)
+      community.general.zypper:
+        name:
+          - crowdsec
+          # The packagecloud RPM repo ships the bouncer as backend-specific packages,
+          # not a generic metapackage. We drive nftables (below), so use the -nftables build.
+          - crowdsec-firewall-bouncer-nftables
+        # packagecloud sets gpgcheck=0 (repo_gpgcheck=1); individual RPMs aren't signed.
+        disable_gpg_check: true
+        state: present
+
+    - name: Ensure the firewall bouncer uses the nftables backend
+      ansible.builtin.lineinfile:
+        path: /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+        regexp: '^mode:'
+        line: "mode: nftables"
+        backup: true
+      notify: Restart crowdsec-firewall-bouncer
+
+    - name: Whitelist management networks
+      ansible.builtin.template:
+        src: whitelist.yaml.j2
+        dest: /etc/crowdsec/parsers/s02-enrich/whitelist.yaml
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload crowdsec
+
+    - name: Update CrowdSec hub index
+      ansible.builtin.command: cscli hub update
+      register: cs_hub
+      changed_when: "'hub index is up to date' not in cs_hub.stderr"
+
+    - name: Check CrowdSec collection status
+      ansible.builtin.command: "cscli collections inspect {{ item }} -o json"
+      register: cs_inspect
+      changed_when: false
+      failed_when: false
+      loop: "{{ crowdsec_collections }}"
+
+    - name: Install CrowdSec collections
+      ansible.builtin.command: "cscli collections install {{ item.item }} --force"
+      register: cs_coll
+      changed_when: true
+      failed_when: cs_coll.rc != 0
+      loop: "{{ cs_inspect.results }}"
+      vars:
+        # Guard against unparseable cscli output (empty stdout, schema changes, etc.).
+        # A parse failure yields an empty dict, which triggers a (forced) reinstall
+        # rather than crashing the loop with a Jinja2 error.
+        _cs_info: "{{ (item.stdout | default('') | from_json) if (item.stdout | default('')) | length > 0 else {} }}"
+      when: >
+        item.rc != 0 or
+        not _cs_info.get('up_to_date', false) or
+        _cs_info.get('tainted', false)
+      notify: Reload crowdsec
+
+    - name: Enable and start crowdsec + bouncer
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - crowdsec
+        - crowdsec-firewall-bouncer
+
+    - name: Enroll the engine in the CrowdSec console
+      ansible.builtin.command: "cscli console enroll {{ vault_crowdsec_enroll_key }}"
+      register: cs_enroll
+      no_log: true
+      changed_when: >
+        'Enrolled' in cs_enroll.stdout or
+        ('enroll' in cs_enroll.stdout and 'already' not in cs_enroll.stdout)
+      failed_when:
+        - cs_enroll.rc != 0
+        - "'already enrolled' not in (cs_enroll.stdout + cs_enroll.stderr)"
+      when:
+        - crowdsec_console_enroll | bool
+        - vault_crowdsec_enroll_key | default('') | length > 0
+      notify: Restart crowdsec

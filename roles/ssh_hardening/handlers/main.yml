@@ -1,0 +1,6 @@
+---
+- name: Reload ssh
+  ansible.builtin.systemd_service:
+    # SUSE ships the OpenSSH server as the 'sshd' unit (Debian calls it 'ssh').
+    name: sshd
+    state: reloaded

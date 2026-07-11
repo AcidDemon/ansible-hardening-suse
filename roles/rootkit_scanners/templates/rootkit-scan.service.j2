@@ -1,0 +1,13 @@
+[Unit]
+Description=Rootkit scanners (Ansible-managed)
+
+[Service]
+Type=oneshot
+{% if rkhunter_enabled | bool %}
+# Leading '-' so a warning/non-zero exit does not fail the unit (and does not stop chkrootkit
+# below); --cronjob keeps output non-interactive, --update refreshes signatures before checking.
+ExecStart=-/usr/bin/rkhunter --cronjob --update --report-warnings-only
+{% endif %}
+{% if chkrootkit_enabled | bool %}
+ExecStart=-/usr/bin/chkrootkit -q
+{% endif %}

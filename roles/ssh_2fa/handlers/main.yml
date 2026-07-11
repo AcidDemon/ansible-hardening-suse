@@ -1,0 +1,6 @@
+---
+# Handler name unchanged so notifies port 1:1; only the unit differs (SUSE ships sshd.service, not ssh.service).
+- name: Reload ssh
+  ansible.builtin.systemd_service:
+    name: sshd
+    state: reloaded

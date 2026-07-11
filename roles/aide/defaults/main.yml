@@ -1,0 +1,10 @@
+---
+aide_enabled: true
+aide_init: true
+# rootless-podman storage + live Nextcloud data churn constantly; excluding keeps
+# the nightly check actionable. ncstack_user comes from the app layer.
+aide_exclude_paths:
+  - "/home/{{ ncstack_user | default('ncstack') }}/.local/share/containers"
+  - "/home/{{ ncstack_user | default('ncstack') }}/.config/containers"
+  - "/home/{{ ncstack_user | default('ncstack') }}/nextcloud/data"
+  - "/var/lib/containers"

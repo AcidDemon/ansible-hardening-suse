@@ -1,0 +1,5 @@
+---
+- name: Disarm the rollback dead-man's-switch
+  ansible.builtin.command: systemctl stop harden-rollback.timer  # noqa: command-instead-of-module
+  changed_when: false
+  failed_when: false

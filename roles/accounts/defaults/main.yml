@@ -1,0 +1,6 @@
+---
+accounts_pwquality_minlen: 12
+accounts_faillock_enabled: false
+accounts_faillock_deny: 5
+accounts_faillock_unlock_time: 900
+accounts_restrict_su: true

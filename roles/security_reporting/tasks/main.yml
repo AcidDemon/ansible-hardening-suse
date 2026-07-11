@@ -1,0 +1,47 @@
+---
+- name: Configure security reporting
+  when: security_reporting_enabled | bool
+  block:
+    - name: Install logwatch + mailx
+      # SUSE: mailx is s-nail here and provides the `mail` binary the report uses.
+      community.general.zypper:
+        name:
+          - logwatch
+          - mailx
+        state: present
+    - name: Configure logwatch
+      ansible.builtin.copy:
+        dest: /etc/logwatch/conf/logwatch.conf
+        content: |
+          MailTo = root
+          Detail = Med
+          Range = yesterday
+          Format = text
+          Output = mail
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Deploy the posture report script
+      ansible.builtin.template:
+        src: security-report.sh.j2
+        dest: /usr/local/sbin/security-report.sh
+        owner: root
+        group: root
+        mode: "0750"
+    - name: Deploy the posture report service + timer
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - security-report.service
+        - security-report.timer
+      notify: Reload systemd daemon
+    - name: Enable the posture report timer
+      ansible.builtin.systemd_service:
+        name: security-report.timer
+        enabled: true
+        state: started
+        daemon_reload: true

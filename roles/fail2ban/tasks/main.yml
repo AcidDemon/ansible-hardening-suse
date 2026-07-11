@@ -1,0 +1,34 @@
+---
+# Requires firewalld installed + running: the jail.local banaction is a firewalld
+# action (firewallcmd-rich-rules), and firewalld flushes fail2ban's own nft table
+# on reload. base_suse.firewall owns installing/enabling firewalld — run it first.
+- name: Configure fail2ban
+  when: fail2ban_enabled | bool
+  block:
+    - name: Enable the openSUSE security OBS repo (fail2ban isn't in base Leap 15.6)
+      community.general.zypper_repository:
+        name: security
+        repo: "https://download.opensuse.org/repositories/security/15.6/security.repo"
+        auto_import_keys: true
+        autorefresh: true
+        state: present
+
+    - name: Install fail2ban
+      community.general.zypper:
+        name: fail2ban
+        state: present
+
+    - name: Deploy jail.local
+      ansible.builtin.template:
+        src: jail.local.j2
+        dest: /etc/fail2ban/jail.local
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart fail2ban
+
+    - name: Enable and start fail2ban
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        enabled: true
+        state: started

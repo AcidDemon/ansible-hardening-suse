@@ -1,0 +1,10 @@
+---
+- name: Arm the rollback dead-man's-switch
+  # base owns the firewall; this repo only writes SSH drop-ins. On lockout, strip
+  # the drop-ins and reload sshd — never touch firewalld (would wipe the base zone).
+  ansible.builtin.command: >-
+    systemd-run --on-active={{ harden_rollback_minutes }}min --unit=harden-rollback
+    /bin/sh -c
+    "rm -f /etc/ssh/sshd_config.d/10-hardening.conf /etc/ssh/sshd_config.d/20-2fa.conf;
+    systemctl reload sshd"
+  changed_when: false

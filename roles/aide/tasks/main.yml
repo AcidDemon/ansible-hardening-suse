@@ -1,0 +1,55 @@
+---
+- name: Configure AIDE
+  when: aide_enabled | bool
+  block:
+    - name: Install aide
+      # SUSE ships a single 'aide' package (no aide-common split).
+      community.general.zypper:
+        name: aide
+        state: present
+
+    - name: Exclude churny container + app-data paths (before the DB is built)
+      # SUSE has no /etc/aide/aide.conf.d/ include dir, only a single
+      # /etc/aide.conf, so the excludes are appended into the main config.
+      ansible.builtin.blockinfile:
+        path: /etc/aide.conf
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - stack excludes"
+        block: |
+          {% for p in aide_exclude_paths %}
+          !{{ p }}
+          {% endfor %}
+
+    - name: Initialise the AIDE database (slow; first run only)
+      # No 'aideinit' wrapper on SUSE: run aide --init, then promote the freshly
+      # built db to the path the --check service reads. gzip_dbout decides the
+      # suffix (aide.db.new vs aide.db.new.gz), so promote whichever was built.
+      ansible.builtin.shell: |
+        set -e
+        aide --init --config /etc/aide.conf
+        if [ -f /var/lib/aide/aide.db.new.gz ]; then
+          mv -f /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db
+        else
+          mv -f /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+        fi
+      args:
+        creates: /var/lib/aide/aide.db
+      when: aide_init | bool
+
+    - name: Deploy the daily check service + timer
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop:
+        - aidecheck.service
+        - aidecheck.timer
+      notify: Reload systemd daemon
+
+    - name: Enable the daily AIDE check timer
+      ansible.builtin.systemd_service:
+        name: aidecheck.timer
+        enabled: true
+        state: started
+        daemon_reload: true

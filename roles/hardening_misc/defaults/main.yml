@@ -1,0 +1,11 @@
+---
+hardening_misc_coredumps: true
+hardening_misc_journald_persistent: true
+hardening_misc_cron_allow: true
+hardening_misc_tmp_tmpfs: false
+hardening_misc_msmtp: true
+admin_user: acid
+deploy_user: ansible
+hardening_misc_proc_hidepid: false
+# extra accounts that must keep cron/at + /proc visibility (app hosts set e.g. [ncstack])
+hardening_misc_cron_allow_extra_users: []

@@ -1,0 +1,44 @@
+---
+namespace: acidnetworks
+name: hardening_suse
+version: 0.1.0
+readme: README.md
+authors:
+  - AcidDemon <c.schlueter@acidnetworks.net>
+description: >-
+  openSUSE Leap hardening layer: SSH hardening + 2FA, auditd, AIDE, CrowdSec, fail2ban,
+  rootkit scanners and Lynis, with a systemd-timer rollback dead-man's-switch. Sibling of
+  acidnetworks.hardening_debian; OS identity, time-sync enablement and auto-updates live
+  in acidnetworks.base_suse.
+license:
+  - MIT
+tags:
+  - opensuse
+  - suse
+  - hardening
+  - security
+repository: https://github.com/AcidDemon/ansible-hardening-suse
+dependencies:
+  community.general: "*"
+  ansible.posix: "*"
+# Ship roles/ + playbooks/ (harden.yml + tasks/ carry the rollback safety logic) + README/LICENSE.
+# Everything below is dev scaffolding or secrets and must NOT enter the artifact.
+build_ignore:
+  - .ansible
+  - .ansible-lint
+  - .claude
+  - .superpowers
+  - .git
+  - .gitignore
+  - .envrc
+  - .yamllint
+  - .vault-pass
+  - ansible.cfg
+  - requirements.yml
+  - site.yml
+  - inventory
+  - files
+  - tests
+  - Vagrantfile
+  - playbooks/roles
+  - "*.tar.gz"

@@ -1,0 +1,6 @@
+[Unit]
+Description=AIDE file integrity check (Ansible-managed)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/aide --config /etc/aide.conf --check

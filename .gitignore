@@ -1,0 +1,16 @@
+.vagrant/
+.ansible/
+*.retry
+*.tar.gz
+__pycache__/
+
+# Secrets — never commit
+.vault-pass
+files/
+
+# Claude / superpowers tooling — never commit
+.claude/
+CLAUDE.md
+AGENTS.md
+.superpowers/
+docs/superpowers/

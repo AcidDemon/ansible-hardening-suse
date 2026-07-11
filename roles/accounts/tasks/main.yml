@@ -1,0 +1,79 @@
+---
+- name: Install account-hardening packages
+  community.general.zypper:
+    name:
+      # SUSE Leap 15.6: pam_pwquality.so ships in the 'pam_pwquality' package (which
+      # pulls in libpwquality1). 'libpwquality' is only the source-package name — there
+      # is no binary of that name, so requesting it aborts the whole role.
+      - pam_pwquality
+      - sudo
+    state: present
+
+- name: Harden sudo defaults
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/00-hardening
+    content: |
+      Defaults use_pty
+      Defaults logfile="/var/log/sudo.log"
+      Defaults !visiblepw
+      Defaults passwd_timeout=1
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Configure pwquality
+  ansible.builtin.template:
+    src: pwquality.conf.j2
+    dest: /etc/security/pwquality.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+- name: Set login.defs UMASK to 027
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^\s*#?\s*UMASK\s+'
+    line: "UMASK 027"
+    backup: true
+
+# CAVEAT (SUSE): Leap 15.6's login.defs default is SHA512. Keeping YESCRYPT to match the
+# Debian contract; verify on box that pam/libxcrypt support it and fall back to SHA512 if not.
+- name: Set login.defs ENCRYPT_METHOD to YESCRYPT
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^\s*#?\s*ENCRYPT_METHOD\s+'
+    line: "ENCRYPT_METHOD YESCRYPT"
+
+- name: Set login.defs PASS_MAX_DAYS
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^\s*#?\s*PASS_MAX_DAYS\s+'
+    line: "PASS_MAX_DAYS 365"
+
+# NOTE: faillock here writes config only. Activating it requires pam_faillock
+# wiring in /etc/pam.d/common-auth, which is a lockout risk and is therefore
+# left to a deliberate manual step. Default is disabled.
+# CAVEAT (SUSE): confirm pam_faillock.so ships in Leap 15.6's pam (faillock landed in
+# pam 1.4). Writing faillock.conf is harmless if the module is absent.
+- name: Configure faillock thresholds (config only; default disabled)
+  when: accounts_faillock_enabled | bool
+  ansible.builtin.copy:
+    dest: /etc/security/faillock.conf
+    content: |
+      deny = {{ accounts_faillock_deny }}
+      unlock_time = {{ accounts_faillock_unlock_time }}
+      fail_interval = 900
+    owner: root
+    group: root
+    mode: "0644"
+
+# SUSE: the admin group is 'wheel' (not Debian's 'sudo').
+- name: Restrict su to the wheel group (pam_wheel)
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/su
+    regexp: '^#?\s*auth\s+required\s+pam_wheel\.so(?!.*trust)'
+    line: "auth       required   pam_wheel.so use_uid group=wheel"
+    backup: true
+  when: accounts_restrict_su | bool

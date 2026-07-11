@@ -1,0 +1,5 @@
+---
+# Set false to skip auditd entirely (e.g. an unprivileged LXC with no kernel audit access).
+auditd_enabled: true
+auditd_uid_min: 1000
+auditd_rules_immutable: false

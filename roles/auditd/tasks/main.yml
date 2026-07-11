@@ -1,0 +1,38 @@
+---
+- name: Host auditd (skip via auditd_enabled=false, e.g. unprivileged containers)
+  when: auditd_enabled | bool
+  block:
+    - name: Install auditd
+      # SUSE: 'audit' provides auditd/auditctl/augenrules; audispd merged into
+      # auditd in audit 3.x, plugins ship in audit-audispd-plugins.
+      community.general.zypper:
+        name:
+          - audit
+          - audit-audispd-plugins
+        state: present
+
+    - name: Deploy audit rules
+      ansible.builtin.template:
+        src: hardening.rules.j2
+        dest: /etc/audit/rules.d/hardening.rules
+        owner: root
+        group: root
+        mode: "0640"
+      register: auditd_rules
+
+    - name: Enable and start auditd
+      ansible.builtin.systemd_service:
+        name: auditd
+        enabled: true
+        state: started
+
+    - name: Load audit rules  # noqa: no-handler
+      ansible.builtin.command: augenrules --load
+      changed_when: false
+      when: auditd_rules is changed
+
+    - name: Verify audit rules loaded
+      ansible.builtin.command: auditctl -l
+      register: auditctl_list
+      changed_when: false
+      failed_when: "'identity' not in auditctl_list.stdout"

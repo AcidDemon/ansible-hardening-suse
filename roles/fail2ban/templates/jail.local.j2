@@ -1,0 +1,15 @@
+# Managed by Ansible (fail2ban)
+[DEFAULT]
+backend   = systemd
+allowipv6 = auto
+ignoreip  = 127.0.0.1/8 ::1 {{ fail2ban_ignoreip | join(' ') }}
+bantime  = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+maxretry = {{ fail2ban_maxretry }}
+# firewalld banaction, NOT nftables: firewalld flushes fail2ban's own nft table
+# on reload, so nftables-multiport bans silently vanish.
+banaction = firewallcmd-rich-rules
+
+[sshd]
+enabled = true
+port    = {{ ssh_port }}

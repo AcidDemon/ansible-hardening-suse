@@ -1,0 +1,40 @@
+## Managed by Ansible (auditd) — curated baseline (UID_MIN={{ auditd_uid_min }})
+-D
+-b 8192
+-f 1
+
+## Time changes
+-a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k time-change
+-w /etc/localtime -p wa -k time-change
+
+## Identity / account changes
+-w /etc/group -p wa -k identity
+-w /etc/passwd -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/sudoers -p wa -k identity
+-w /etc/sudoers.d/ -p wa -k identity
+
+## Login / session
+-w /var/log/lastlog -p wa -k logins
+-w /var/run/faillock/ -p wa -k logins
+
+## Privileged command execution (sudo / su)
+-w /usr/bin/sudo -p x -k privileged
+-w /bin/su -p x -k privileged
+
+## SSH + PAM config
+-w /etc/ssh/sshd_config -p wa -k sshd
+-w /etc/ssh/sshd_config.d/ -p wa -k sshd
+-w /etc/pam.d/ -p wa -k pam
+
+## Unauthorized access attempts to files (EACCES/EPERM)
+-a always,exit -F arch=b64 -S open,openat,truncate,ftruncate -F exit=-EACCES -F auid>={{ auditd_uid_min }} -F auid!=4294967295 -k access
+-a always,exit -F arch=b64 -S open,openat,truncate,ftruncate -F exit=-EPERM  -F auid>={{ auditd_uid_min }} -F auid!=4294967295 -k access
+
+## Kernel module load/unload
+-a always,exit -F arch=b64 -S init_module,delete_module,finit_module -k modules
+{% if auditd_rules_immutable %}
+
+## Make the configuration immutable (requires reboot to change)
+-e 2
+{% endif %}

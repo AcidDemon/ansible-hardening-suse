@@ -1,0 +1,6 @@
+[Unit]
+Description=Daily security posture report (Ansible-managed)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/security-report.sh
