@@ -1,5 +1,7 @@
 # openSUSE Hardening (Ansible)
 
+[![GitLab mirror](https://img.shields.io/badge/mirror-GitLab-FC6D26?logo=gitlab&logoColor=white)](https://git.inviziblenet.work/AcidDemon/ansible-hardening-suse)
+
 Security-hardening layer for openSUSE Leap hosts. Sibling of
 `acidnetworks.hardening_debian` — same role set, same tiered var contract, same
 systemd-timer rollback dead-man's-switch — ported to zypper / firewalld / SUSE PAM.
