@@ -4,7 +4,7 @@ name: hardening_suse
 version: 0.1.0
 readme: README.md
 authors:
-  - AcidDemon <c.schlueter@acidnetworks.net>
+  - AcidDemon <ansible@invz.cc>
 description: >-
   openSUSE Leap hardening layer: SSH hardening + 2FA, auditd, AIDE, CrowdSec, fail2ban,
   rootkit scanners and Lynis, with a systemd-timer rollback dead-man's-switch. Sibling of
